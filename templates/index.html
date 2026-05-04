@@ -1,53 +1,74 @@
 <!DOCTYPE html>
 <html>
 <head>
-<title>BBScanner AI Hunter</title>
+<title>BBScanner Elite</title>
 
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;500;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500&family=Inter:wght@300;500&display=swap" rel="stylesheet">
 <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
 
 <style>
 body {
     margin:0;
-    background:#0b0f1a;
-    color:#e2e8f0;
-    font-family:'Inter', sans-serif;
-}
-
-/* NAV */
-.nav {
-    padding:15px 25px;
+    display:flex;
+    font-family:'Inter';
     background:#020617;
-    border-bottom:1px solid #1e293b;
+    color:#e2e8f0;
 }
 
-.nav h1 { color:#22c55e; }
-
-/* CONTROLS */
-.controls {
+/* SIDEBAR */
+.sidebar {
+    width:220px;
+    background:#000;
+    border-right:1px solid #22c55e;
+    height:100vh;
     padding:20px;
+}
+
+.sidebar h2 {
+    font-family:'Orbitron';
+    color:#22c55e;
+}
+
+.menu {
+    margin-top:20px;
+    color:#94a3b8;
+}
+
+.menu div {
+    margin:10px 0;
+}
+
+/* MAIN */
+.main {
+    flex:1;
+}
+
+/* TOP */
+.topbar {
+    padding:15px;
+    border-bottom:1px solid #111;
     display:flex;
     gap:10px;
 }
 
 input {
     flex:1;
-    padding:12px;
-    background:#020617;
-    border:1px solid #1e293b;
-    color:white;
+    padding:10px;
+    background:#000;
+    border:1px solid #22c55e;
+    color:#22c55e;
 }
 
 button {
     background:#22c55e;
     border:none;
-    padding:12px 20px;
+    padding:10px;
     cursor:pointer;
 }
 
 #pdfBtn {
-    background:#334155;
-    color:#94a3b8;
+    background:#111;
+    color:#555;
 }
 
 #pdfBtn.active {
@@ -55,78 +76,104 @@ button {
     color:black;
 }
 
+/* PROGRESS */
+.progress {
+    height:5px;
+    background:#111;
+}
+
+.bar {
+    height:100%;
+    width:0%;
+    background:#22c55e;
+    transition:0.3s;
+}
+
 /* GRID */
 .grid {
     display:grid;
-    grid-template-columns: repeat(auto-fit,minmax(320px,1fr));
-    gap:20px;
-    padding:20px;
+    grid-template-columns: repeat(auto-fit,minmax(300px,1fr));
+    gap:15px;
+    padding:15px;
 }
 
 /* CARD */
 .card {
-    background:#020617;
-    border:1px solid #1e293b;
+    background:#000;
+    border:1px solid #111;
     padding:15px;
+}
+
+.card h3 {
+    color:#22c55e;
 }
 
 /* LOG */
 .logs {
     font-family:monospace;
     font-size:12px;
-    max-height:220px;
+    max-height:200px;
     overflow:auto;
+    color:#22c55e;
 }
 
-.item {
-    padding:6px;
-    border-bottom:1px solid #1e293b;
-}
-
-.status {
-    color:#64748b;
-    font-size:12px;
+/* ALERT */
+.alert {
+    color:#ff4d4d;
 }
 </style>
 </head>
 
 <body>
 
-<div class="nav">
-    <h1>⚡ BBScanner AI Hunter</h1>
+<div class="sidebar">
+    <h2>⚡ BBScanner</h2>
+    <div class="menu">
+        <div>Dashboard</div>
+        <div>Scans</div>
+        <div>Reports</div>
+    </div>
 </div>
 
-<div class="controls">
-    <input id="target" placeholder="example.com">
-    <button onclick="startScan()">Scan</button>
-    <button id="pdfBtn" onclick="downloadPDF()" disabled>📄 PDF</button>
-</div>
+<div class="main">
 
-<div class="grid">
-
-    <div class="card">
-        <h3>🧾 Logs</h3>
-        <div id="logs" class="logs"></div>
+    <div class="topbar">
+        <input id="target" placeholder="target.com">
+        <button onclick="startScan()">Scan</button>
+        <button id="pdfBtn" onclick="downloadPDF()" disabled>PDF</button>
     </div>
 
-    <div class="card">
-        <h3>🌐 Info</h3>
-        <div id="info"></div>
+    <div class="progress">
+        <div id="bar" class="bar"></div>
     </div>
 
-    <div class="card">
-        <h3>🚨 Alerts</h3>
-        <div id="alerts"></div>
-    </div>
+    <div class="grid">
 
-    <div class="card">
-        <h3>📊 Vulns</h3>
-        <div id="vulns"></div>
-    </div>
+        <div class="card">
+            <h3>🧾 Logs</h3>
+            <div id="logs" class="logs"></div>
+        </div>
 
-    <div class="card">
-        <h3>🧠 Fuzz</h3>
-        <div id="fuzz"></div>
+        <div class="card">
+            <h3>🌐 Info</h3>
+            <div id="info"></div>
+        </div>
+
+        <div class="card">
+            <h3>🚨 Alerts</h3>
+            <div id="alerts"></div>
+        </div>
+
+        <div class="card">
+            <h3>📊 Vulnerabilidades</h3>
+            <div id="vulns"></div>
+        </div>
+
+        <div class="card">
+            <h3>🧠 Endpoints</h3>
+            <div id="fuzz"></div>
+        </div>
+
     </div>
 
 </div>
@@ -135,34 +182,48 @@ button {
 const socket = io();
 let scanDone = false;
 
-function startScan(){
-    scanDone = false;
-
-    document.getElementById("pdfBtn").disabled = true;
-    document.getElementById("pdfBtn").classList.remove("active");
-
-    socket.emit("start_scan", {
-        target: document.getElementById("target").value
-    });
+/* PROGRESS SIMULADO */
+function setProgress(p){
+    document.getElementById("bar").style.width = p + "%";
 }
 
+/* START */
+function startScan(){
+    scanDone = false;
+    setProgress(10);
+
+    logs.innerHTML="";
+    info.innerHTML="";
+    alerts.innerHTML="";
+    vulns.innerHTML="";
+    fuzz.innerHTML="";
+
+    pdfBtn.disabled = true;
+    pdfBtn.classList.remove("active");
+
+    socket.emit("start_scan", { target: target.value });
+}
+
+/* PDF */
 function downloadPDF(){
-    if(!scanDone){
-        alert("Espera el scan");
-        return;
-    }
+    if(!scanDone) return alert("Scan en progreso");
     window.open("/pdf/" + target.value);
 }
 
+/* SOCKET */
 socket.on("log", d=>{
-    logs.innerHTML += `> ${d.msg}<br>`;
+    logs.innerHTML += "> " + d.msg + "<br>";
     logs.scrollTop = logs.scrollHeight;
 
+    if(d.msg.includes("Nmap")) setProgress(30);
+    if(d.msg.includes("Nuclei")) setProgress(60);
+    if(d.msg.includes("Fuzzing")) setProgress(80);
+
     if(d.msg.includes("Scan completado")){
+        setProgress(100);
         scanDone = true;
-        let btn = document.getElementById("pdfBtn");
-        btn.disabled = false;
-        btn.classList.add("active");
+        pdfBtn.disabled = false;
+        pdfBtn.classList.add("active");
     }
 });
 
@@ -175,7 +236,7 @@ socket.on("ports", d=>{
 });
 
 socket.on("alerts", d=>{
-    alerts.innerHTML = d.map(a=>`<div>${a.url}</div>`).join("");
+    alerts.innerHTML = d.map(a=>`<div class="alert">${a.url}</div>`).join("");
 });
 
 socket.on("vulns", d=>{
