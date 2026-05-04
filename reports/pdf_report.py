@@ -2,77 +2,42 @@ from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
 from reportlab.lib.styles import getSampleStyleSheet
 import os
 
-def generate_pdf(path, data):
-    styles = getSampleStyleSheet()
+os.makedirs("reports", exist_ok=True)
+
+def generate_pdf(scan_id, data):
+    path = f"reports/{scan_id}.pdf"
+
     doc = SimpleDocTemplate(path)
+    styles = getSampleStyleSheet()
 
     elements = []
 
-    # ===== TITLE =====
-    elements.append(Paragraph("BBScanner AI Hunter Report", styles["Title"]))
+    elements.append(Paragraph("BBScanner Report", styles["Title"]))
     elements.append(Spacer(1, 10))
 
-    # ===== BASIC INFO =====
-    elements.append(Paragraph(f"IP: {data.get('ip','N/A')}", styles["Normal"]))
-    elements.append(Paragraph(f"Tech: {', '.join(data.get('tech',[]))}", styles["Normal"]))
+    elements.append(Paragraph(f"IP: {data.get('ip')}", styles["Normal"]))
+    elements.append(Paragraph(f"Tech: {', '.join(data.get('tech', []))}", styles["Normal"]))
     elements.append(Spacer(1, 10))
 
-    # ===== PORTS =====
-    elements.append(Paragraph("Open Ports:", styles["Heading2"]))
+    for p in data.get("ports", []):
+        elements.append(Paragraph(f"{p['port']} - {p['service']}", styles["Normal"]))
 
-    ports = data.get("ports", [])
-    if ports:
-        for p in ports:
-            elements.append(Paragraph(
-                f"{p['port']} - {p['service']} ({p.get('product','')})",
-                styles["Normal"]
-            ))
-    else:
-        elements.append(Paragraph("No ports found", styles["Normal"]))
+    for v in data.get("vulns", []):
+        elements.append(Paragraph(f"[{v['severity']}] {v['name']}", styles["Normal"]))
 
-    elements.append(Spacer(1, 10))
+    elements.append(Paragraph("Critical Findings:", styles["Heading2"]))
 
-    # ===== ALERTS =====
-    elements.append(Paragraph("Critical Alerts:", styles["Heading2"]))
+    for p in data.get("ports", []):
+       port = p["port"]
 
-    alerts = data.get("alerts", [])
-    if alerts:
-        for a in alerts:
-            elements.append(Paragraph(
-                f"[{a['severity']}] {a['type']} → {a['url']}",
-                styles["Normal"]
-            ))
-    else:
-        elements.append(Paragraph("No critical alerts", styles["Normal"]))
+    if port == "21":
+        elements.append(Paragraph("FTP abierto → riesgo de acceso no autorizado", styles["Normal"]))
 
-    elements.append(Spacer(1, 10))
+    if port == "25":
+        elements.append(Paragraph("SMTP expuesto → posible relay o enumeración", styles["Normal"]))
 
-    # ===== VULNS =====
-    elements.append(Paragraph("Vulnerabilities:", styles["Heading2"]))
-
-    vulns = data.get("vulns", [])
-    if vulns:
-        for v in vulns:
-            elements.append(Paragraph(
-                f"[{v['severity']}] {v['name']}",
-                styles["Normal"]
-            ))
-    else:
-        elements.append(Paragraph("No vulnerabilities found", styles["Normal"]))
-
-    elements.append(Spacer(1, 10))
-
-    # ===== FUZZ =====
-    elements.append(Paragraph("Discovered Endpoints:", styles["Heading2"]))
-
-    fuzz = data.get("fuzz", [])
-    if fuzz:
-        for f in fuzz[:20]:  # limitar
-            elements.append(Paragraph(
-                f"[{f['status']}] {f['url']}",
-                styles["Normal"]
-            ))
-    else:
-        elements.append(Paragraph("No endpoints found", styles["Normal"]))
+    if port == "3306":
+        elements.append(Paragraph("MySQL expuesto → riesgo crítico si no protegido", styles["Normal"]))
 
     doc.build(elements)
+    return path
