@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>BBScanner AI Hunter</title>
+
+<!-- FONT -->
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;500;700&display=swap" rel="stylesheet">
+
+<!-- SOCKET -->
+<script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+
+<style>
+body {
+    margin:0;
+    background:#0b0f1a;
+    color:#e2e8f0;
+    font-family:'Inter', sans-serif;
+}
+
+/* NAVBAR */
+.nav {
+    padding:15px 25px;
+    background:#020617;
+    border-bottom:1px solid #1e293b;
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+}
+
+.nav h1 {
+    font-size:18px;
+    color:#22c55e;
+}
+
+/* CONTROLS */
+.controls {
+    padding:20px;
+    display:flex;
+    gap:10px;
+}
+
+input {
+    flex:1;
+    padding:12px;
+    background:#020617;
+    border:1px solid #1e293b;
+    color:white;
+    border-radius:6px;
+}
+
+button {
+    background:#22c55e;
+    border:none;
+    padding:12px 20px;
+    border-radius:6px;
+    cursor:pointer;
+    font-weight:600;
+}
+
+button:hover {
+    background:#16a34a;
+}
+
+/* GRID */
+.grid {
+    display:grid;
+    grid-template-columns: repeat(auto-fit,minmax(320px,1fr));
+    gap:20px;
+    padding:20px;
+}
+
+/* CARD */
+.card {
+    background:#020617;
+    border:1px solid #1e293b;
+    border-radius:10px;
+    padding:15px;
+    box-shadow:0 0 20px rgba(0,0,0,0.5);
+}
+
+/* TITLES */
+.card h3 {
+    margin:0 0 10px 0;
+    font-size:14px;
+    color:#94a3b8;
+}
+
+/* LOG TERMINAL */
+.logs {
+    font-family:monospace;
+    font-size:12px;
+    max-height:220px;
+    overflow-y:auto;
+}
+
+/* ITEMS */
+.item {
+    padding:6px;
+    border-bottom:1px solid #1e293b;
+}
+
+/* COLORS */
+.critical {color:#ef4444;}
+.high {color:#f97316;}
+.medium {color:#eab308;}
+.low {color:#22c55e;}
+
+.status {
+    color:#64748b;
+    font-size:12px;
+}
+</style>
+</head>
+
+<body>
+
+<div class="nav">
+    <h1>⚡ BBScanner AI Hunter</h1>
+</div>
+
+<div class="controls">
+    <input id="target" placeholder="example.com">
+    <button onclick="startScan()">Scan</button>
+</div>
+
+<div class="grid">
+
+    <div class="card">
+        <h3>🧾 Logs (live)</h3>
+        <div id="logs" class="logs"></div>
+    </div>
+
+    <div class="card">
+        <h3>🌐 Target Info</h3>
+        <div id="info">Esperando scan...</div>
+    </div>
+
+    <div class="card">
+        <h3>🚨 AI Alerts</h3>
+        <div id="alerts">Sin datos</div>
+    </div>
+
+    <div class="card">
+        <h3>📊 Vulnerabilidades</h3>
+        <div id="vulns">Sin datos</div>
+    </div>
+
+    <div class="card">
+        <h3>🧠 Endpoints descubiertos</h3>
+        <div id="fuzz">Sin datos</div>
+    </div>
+
+</div>
+
+<script>
+const socket = io();
+
+function startScan(){
+    resetUI();
+    socket.emit("start_scan", {
+        target: document.getElementById("target").value
+    });
+}
+
+function resetUI(){
+    logs.innerHTML="";
+    info.innerHTML="Iniciando...";
+    alerts.innerHTML="";
+    vulns.innerHTML="";
+    fuzz.innerHTML="";
+}
+
+/* ===== SOCKET EVENTS ===== */
+
+socket.on("log", data=>{
+    logs.innerHTML += `<div>> ${data.msg}</div>`;
+    logs.scrollTop = logs.scrollHeight;
+});
+
+socket.on("info", data=>{
+    info.innerHTML = `<b>IP:</b> ${data.ip}`;
+});
+
+socket.on("tech", data=>{
+    info.innerHTML += `<br><b>Tech:</b> ${data.join(", ") || "N/A"}`;
+});
+
+socket.on("ports", data=>{
+    info.innerHTML += `<br><b>Puertos:</b> ${data.length}`;
+});
+
+socket.on("vulns", data=>{
+    if(!data.length){
+        vulns.innerHTML = "<span class='status'>No vulnerabilities detected</span>";
+        return;
+    }
+
+    vulns.innerHTML = data.map(v=>`
+        <div class="item ${v.severity}">
+        [${v.severity}] ${v.name}
+        </div>
+    `).join("");
+});
+
+socket.on("fuzz", data=>{
+    if(!data.length){
+        fuzz.innerHTML = "<span class='status'>No endpoints found</span>";
+        return;
+    }
+
+    fuzz.innerHTML = data.map(f=>`
+        <div class="item">
+        [${f.status}] ${f.url}
+        </div>
+    `).join("");
+});
+
+socket.on("alerts", data=>{
+    if(!data.length){
+        alerts.innerHTML = "<span class='status'>No critical findings</span>";
+        return;
+    }
+
+    alerts.innerHTML = data.map(a=>`
+        <div class="item ${a.severity}">
+        [${a.severity}] ${a.type}<br>
+        ${a.url}
+        </div>
+    `).join("");
+});
+</script>
+
+</body>
+</html>
